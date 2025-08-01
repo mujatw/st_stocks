@@ -23,8 +23,8 @@ compact_css = """
 st.markdown(compact_css, unsafe_allow_html=True)
 
 default_watchlists = {
-    'sg': 're4.si,2001.hk,BVA.si,3618.hk,c2pu.si,chj.si,q5t.si,j85.si,2219.hk,1883.hk,bwcu.si,9616.hk,0366.hk,0422.hk',
-    'sc': '0316.hk,8001.hk,0366.hk,1569.hk,0683.hk,1205.hk,2348.hk,1568.hk,2488.hk,0609.hk,1419.hk'
+    'sg': 're4.si,BVA.si,c2pu.si,chj.si,q5t.si,j85.si,bwcu.si',
+    'hk': '0316.hk,8001.hk,0366.hk,1569.hk,0683.hk,1205.hk,2348.hk,1568.hk,2488.hk,0609.hk,1419.hk,2001.hk,3618.hk,9616.hk,0366.hk,0422.hk,2219.hk,1883.hk'
 }
 if 'watchlists' not in st.session_state:
     st.session_state['watchlists'] = default_watchlists.copy()
@@ -289,7 +289,7 @@ if tickers:
         df_div = pd.DataFrame(dividend_data)
         df_div = df_div.sort_values(by='Dividend Yield', ascending=False, na_position='last').reset_index(drop=True)
         st.subheader('Dividend, P/E, and Price Change Table')
-        st.dataframe(df_div, use_container_width=True)
+        st.table(df_div)
 
 
 # --- INPUT CONTROLS BELOW CHART ---
