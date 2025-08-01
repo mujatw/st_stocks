@@ -4,8 +4,6 @@ import yfinance as yf
 import plotly.graph_objs as go
 from datetime import datetime, timedelta
 
-
-# Use Streamlit wide layout and compact controls
 st.set_page_config(layout="wide")
 compact_css = """
 <style>
@@ -28,13 +26,11 @@ st.markdown(compact_css, unsafe_allow_html=True)
 
 
 # --- CONTROLS AT TOP ---
-st.title('Stock Watchlist Chart Viewer')
+#st.title('Stock Watchlist Chart Viewer')
 
 default_watchlists = {
-    'HK Tech': '0683.hk,1205.hk,2348.hk,1568.hk',
-    'HK Small Caps': '0316.hk,8001.hk,0366.hk,1569.hk',
-    'HK Misc': '2488.hk,0609.hk,1419.hk',
-    'US Big Tech': 'AAPL,MSFT,GOOGL,AMZN,TSLA',
+    'sg': 're4.sg,2001.hk,BVA.sg,3618.hk,c2pu.sg,chj.sg,q5t.sg,j85.sg,2219.hk,1883.hk,bwcu.sg,9616.hk,0366.hk,0422.hk',
+    'sc': '0316.hk,8001.hk,0366.hk,1569.hk,0683.hk,1205.hk,2348.hk,1568.hk,2488.hk,0609.hk,1419.hk'
 }
 if 'watchlists' not in st.session_state:
     st.session_state['watchlists'] = default_watchlists.copy()
@@ -52,14 +48,31 @@ for idx, name in enumerate(st.session_state['watchlists']):
 tickers = []
 for name in selected_watchlists:
     tickers += [t.strip().upper() for t in st.session_state['watchlists'][name].split(',') if t.strip()]
-start_date = st.slider(
-    '',
-    min_value=five_years_ago.date(),
-    max_value=one_week_ago.date(),
-    value=(today - timedelta(days=180)).date(),
-    format='YYYY-MM-DD',
+# --- Custom slider with visible tick marks using select_slider ---
+tick_dates = [
+    (five_years_ago.date(), '5y ago'),
+    ((today - timedelta(days=4*365)).date(), '4y ago'),
+    ((today - timedelta(days=3*365)).date(), '3y ago'),
+    ((today - timedelta(days=2*365)).date(), '2y ago'),
+    ((today - timedelta(days=1*365)).date(), '1y ago'),
+    (one_week_ago.date(), '1w ago'),
+    (today.date(), 'Today')
+]
+tick_options = [f"{d} ({label})" for d, label in tick_dates]
+tick_map = {f"{d} ({label})": d for d, label in tick_dates}
+default_tick = f"{(today - timedelta(days=180)).date()} (custom)"
+custom_date = (today - timedelta(days=180)).date()
+tick_options.insert(-1, f"{custom_date} (custom)")
+tick_map[f"{custom_date} (custom)"] = custom_date
+start_tick = default_tick if default_tick in tick_options else tick_options[0]
+selected_tick = st.select_slider(
+    label='',
+    options=tick_options,
+    value=start_tick,
     key='compact_slider',
+    help='Select a start date for the chart. Tick marks are labeled.'
 )
+start_date = tick_map[selected_tick]
 
 
 
