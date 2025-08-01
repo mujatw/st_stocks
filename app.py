@@ -287,7 +287,13 @@ if tickers:
                 'Price Change (%)': price_change * 100 if price_change is not None else None
             })
         df_div = pd.DataFrame(dividend_data)
-        df_div = df_div.sort_values(by='Dividend Yield', ascending=False, na_position='last').reset_index(drop=True)
+        # Replace inf/-inf with 10000, round all numbers to 1 decimal, ensure numeric columns are float
+        num_cols = ['Dividend Yield', 'P/E Ratio', 'Price Change (%)']
+        for col in num_cols:
+            if col in df_div.columns:
+                df_div[col] = pd.to_numeric(df_div[col], errors='coerce')
+                df_div[col] = df_div[col].replace([float('inf'), float('-inf')], 10000)
+                df_div[col] = df_div[col].round(1)
         st.subheader('Dividend, P/E, and Price Change Table')
         st.dataframe(df_div, use_container_width=True, height=20*35)
 
