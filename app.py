@@ -135,6 +135,8 @@ if tickers:
                     prices = chart_data['Close']
                 else:
                     prices = chart_data[ticker]['Close']
+                # Forward fill missing values (holidays)
+                prices = prices.fillna(method='ffill')
                 # Normalize performance: start at 100
                 if not prices.empty:
                     # Find first non-NaN value and its index
@@ -215,6 +217,8 @@ if tickers:
                 abbr = company_names.get(tkey, ticker)
                 if len(tickers_list) == 1:
                     prices = chart_data['Close']
+                    # Forward fill missing values (holidays)
+                    prices = prices.fillna(method='ffill')
                     if not prices.empty:
                         fig2.add_trace(go.Scatter(
                             x=prices.index,
@@ -225,6 +229,8 @@ if tickers:
                         ))
                 else:
                     prices = chart_data[ticker]['Close']
+                    # Forward fill missing values (holidays)
+                    prices = prices.fillna(method='ffill')
                     if not prices.empty:
                         # Find first non-NaN value
                         first_valid = prices.first_valid_index()
