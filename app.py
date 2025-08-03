@@ -277,37 +277,74 @@ if tickers:
             if tkey.endswith('.HK') and len(tkey) == 7 and tkey[:4].isdigit():
                 tkey = tkey.zfill(7)
             abbr = company_names.get(tkey, ticker)
+            info = info_dict.get(ticker, {}).get('info', {})
+            yield_val = info.get('dividendYield', None)  # already a fraction
+            pe_ratio = info.get('trailingPE', None)
+            price_to_book = info.get('priceToBook', None)
+            profit_margin = info.get('profitMargins', None)
+            current_price = info.get('currentPrice', None)
+            # Get last close price from cached data if possible
+            last_close = None
+            price_1y = None
+            price_2y = None
+            price_5y = None
             try:
-                yf_ticker = yf.Ticker(ticker)
-                info = yf_ticker.info
-                yield_val = info.get('dividendYield', None)  # already a fraction
-                pe_ratio = info.get('trailingPE', None)
-                current_price = info.get('currentPrice', None)
-                # Get last close price from yfinance history
-                last_close = None
-                try:
-                    hist = yf_ticker.history(period='2d')
-                    if not hist.empty:
-                        last_close = hist['Close'].iloc[-2] if len(hist) > 1 else hist['Close'].iloc[-1]
-                except Exception:
-                    last_close = None
-                price_change = None
-                if current_price is not None and last_close is not None and last_close != 0:
-                    price_change = (current_price / last_close) - 1
+                if ticker in data:
+                    # Multi-ticker DataFrame
+                    prices = data[ticker]['Close']
+                else:
+                    # Single ticker DataFrame
+                    prices = data['Close']
+                if not prices.empty:
+                    last_close = prices.iloc[-2] if len(prices) > 1 else prices.iloc[-1]
+                    # Calculate price change for 1, 2, 5 years
+                    today_idx = prices.index[-1]
+                    def get_past_price(prices, years):
+                        target_date = today - timedelta(days=365*years)
+                        # Find the closest date in the index
+                        past_idx = prices.index.get_loc(target_date, method='nearest') if hasattr(prices.index, 'get_loc') else None
+                        if past_idx is not None:
+                            return prices.iloc[past_idx]
+                        # fallback: try to find the first date after target_date
+                        after = prices.index[prices.index >= target_date]
+                        if len(after) > 0:
+                            return prices.loc[after[0]]
+                        return None
+                    price_1y = get_past_price(prices, 1)
+                    price_2y = get_past_price(prices, 2)
+                    price_5y = get_past_price(prices, 5)
             except Exception:
-                yield_val = None
-                pe_ratio = None
-                price_change = None
+                last_close = None
+                price_1y = None
+                price_2y = None
+                price_5y = None
+            price_change = None
+            price_change_1y = None
+            price_change_2y = None
+            price_change_5y = None
+            if current_price is not None and last_close is not None and last_close != 0:
+                price_change = (current_price / last_close) - 1
+            if current_price is not None and price_1y is not None and price_1y != 0:
+                price_change_1y = (current_price / price_1y) - 1
+            if current_price is not None and price_2y is not None and price_2y != 0:
+                price_change_2y = (current_price / price_2y) - 1
+            if current_price is not None and price_5y is not None and price_5y != 0:
+                price_change_5y = (current_price / price_5y) - 1
             dividend_data.append({
                 'Ticker': ticker,
                 'Company': abbr,
                 'Dividend Yield': yield_val,
                 'P/E Ratio': pe_ratio,
-                'Price Change (%)': price_change * 100 if price_change is not None else None
+                'Price to Book': price_to_book,
+                'Profit Margin (%)': profit_margin * 100 if profit_margin is not None else None,
+                'Price Change (%)': price_change * 100 if price_change is not None else None,
+                '1Y Change (%)': price_change_1y * 100 if price_change_1y is not None else None,
+                '2Y Change (%)': price_change_2y * 100 if price_change_2y is not None else None,
+                '5Y Change (%)': price_change_5y * 100 if price_change_5y is not None else None
             })
         df_div = pd.DataFrame(dividend_data)
         # Replace inf/-inf with 10000, round all numbers to 1 decimal, ensure numeric columns are float
-        num_cols = ['Dividend Yield', 'P/E Ratio', 'Price Change (%)']
+        num_cols = ['Dividend Yield', 'P/E Ratio', 'Price to Book', 'Profit Margin (%)', 'Price Change (%)', '1Y Change (%)', '2Y Change (%)', '5Y Change (%)']
         for col in num_cols:
             if col in df_div.columns:
                 df_div[col] = pd.to_numeric(df_div[col], errors='coerce')
