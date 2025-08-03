@@ -24,7 +24,9 @@ st.markdown(compact_css, unsafe_allow_html=True)
 
 default_watchlists = {
     'sg': 're4.si,BVA.si,c2pu.si,chj.si,q5t.si,j85.si,BWCU.SI',
-    'hk': '0316.hk,8001.hk,1569.hk,0683.hk,1205.hk,2348.hk,1568.hk,2488.hk,0609.hk,1419.hk,2001.hk,3618.hk,9616.hk,0366.hk,0422.hk,2219.hk,1883.hk'
+    'hk': '0316.hk,8001.hk,1569.hk,0683.hk,1205.hk,2348.hk,1568.hk,2488.hk,0609.hk,1419.hk,2001.hk,3618.hk,9616.hk,0366.hk,0422.hk,2219.hk,1883.hk',
+    'us': 'jfin,ntla,land,tlk,atlx,indo,coin,cphi,sxtc,nvts,lit,nisn,gmm,dswl',
+    'can': 'dtwo.v,rck.v,lth.v'
 }
 if 'watchlists' not in st.session_state:
     st.session_state['watchlists'] = default_watchlists.copy()
