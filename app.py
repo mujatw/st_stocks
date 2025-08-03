@@ -26,13 +26,30 @@ default_watchlists = {
     'sg': 're4.si,BVA.si,c2pu.si,chj.si,q5t.si,j85.si,BWCU.SI',
     'hk': '0316.hk,8001.hk,1569.hk,0683.hk,1205.hk,2348.hk,1568.hk,2488.hk,0609.hk,1419.hk,2001.hk,3618.hk,9616.hk,0366.hk,0422.hk,2219.hk,1883.hk',
     'us': 'jfin,ntla,land,tlk,atlx,indo,coin,cphi,sxtc,nvts,lit,nisn,gmm,dswl',
-    'can': 'dtwo.v,rck.v,lth.v'
+    'can': 'dtwo.v,rck.v,lth.v',
+    'hk2':'0863.hk,1062.hk,0020.hk,0763.hk,0767.hk,3800.hk,2018.hk,2031.hk,0320.hk,2663.hk',
+    'us2':'glxy,coin',
+    'sz2':'300673.sz,000661.sz,603566.ss,300871.sz,000876.sz,688027.ss,002891.sz',
+    'sg2':'f83.si'
 }
 if 'watchlists' not in st.session_state:
     st.session_state['watchlists'] = default_watchlists.copy()
 
 today = datetime.today()
 five_years_ago = today - timedelta(days=5*365)
+
+# --- INPUT CONTROLS (moved above charts) ---
+import re
+def watchlists_to_str(watchlists):
+    return ' '.join(f'[{name}] {tickers}' for name, tickers in watchlists.items())
+def str_to_watchlists(s):
+    pattern = r'\[(.*?)\]\s*([^\[]*)'
+    matches = re.findall(pattern, s)
+    return {name.strip(): tickers.strip() for name, tickers in matches if name.strip()}
+current_watchlists_str = watchlists_to_str(st.session_state['watchlists'])
+new_watchlists_str = st.text_area('', current_watchlists_str, height=60)
+if new_watchlists_str != current_watchlists_str:
+    st.session_state['watchlists'] = str_to_watchlists(new_watchlists_str)
 one_week_ago = today - timedelta(days=7)
 
 cols = st.columns(len(st.session_state['watchlists']))
@@ -298,19 +315,5 @@ if tickers:
                 df_div[col] = df_div[col].round(1)
         st.subheader('Dividend, P/E, and Price Change Table')
         st.dataframe(df_div, use_container_width=True, height=20*35)
-
-
-# --- INPUT CONTROLS BELOW CHART ---
-import re
-def watchlists_to_str(watchlists):
-    return ' '.join(f'[{name}] {tickers}' for name, tickers in watchlists.items())
-def str_to_watchlists(s):
-    pattern = r'\[(.*?)\]\s*([^\[]*)'
-    matches = re.findall(pattern, s)
-    return {name.strip(): tickers.strip() for name, tickers in matches if name.strip()}
-current_watchlists_str = watchlists_to_str(st.session_state['watchlists'])
-new_watchlists_str = st.text_area('', current_watchlists_str, height=60)
-if new_watchlists_str != current_watchlists_str:
-    st.session_state['watchlists'] = str_to_watchlists(new_watchlists_str)
 
 
