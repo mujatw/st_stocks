@@ -137,14 +137,19 @@ if tickers:
                     prices = chart_data[ticker]['Close']
                 # Normalize performance: start at 100
                 if not prices.empty:
-                    norm = prices / prices.iloc[0] * 100
-                    all_norms.append(norm)
-                    all_x.append(norm.index)
-                    tkey = ticker.upper()
-                    # Fix for HK tickers: ensure .HK suffix
-                    if tkey.endswith('.HK') and len(tkey) == 7 and tkey[:4].isdigit():
-                        tkey = tkey.zfill(7)
-                    abbr = company_names.get(tkey, ticker)
+                    # Find first non-NaN value and its index
+                    first_valid = prices.first_valid_index()
+                    if first_valid:
+                        # Only use data from first valid point onwards
+                        valid_prices = prices[first_valid:]
+                        norm = valid_prices / valid_prices.iloc[0] * 100
+                        all_norms.append(norm)
+                        all_x.append(norm.index)
+                        tkey = ticker.upper()
+                        # Fix for HK tickers: ensure .HK suffix
+                        if tkey.endswith('.HK') and len(tkey) == 7 and tkey[:4].isdigit():
+                            tkey = tkey.zfill(7)
+                        abbr = company_names.get(tkey, ticker)
                     fig.add_trace(go.Scatter(
                         x=norm.index,
                         y=norm,
@@ -221,11 +226,16 @@ if tickers:
                 else:
                     prices = chart_data[ticker]['Close']
                     if not prices.empty:
-                        min_p = prices.min()
-                        max_p = prices.max()
-                        if max_p > min_p:
-                            norm_mm = (prices - min_p) / (max_p - min_p)
-                            fig2.add_trace(go.Scatter(
+                        # Find first non-NaN value
+                        first_valid = prices.first_valid_index()
+                        if first_valid:
+                            # Only use data from first valid point onwards
+                            valid_prices = prices[first_valid:]
+                            min_p = valid_prices.min()
+                            max_p = valid_prices.max()
+                            if max_p > min_p:
+                                norm_mm = (valid_prices - min_p) / (max_p - min_p)
+                                fig2.add_trace(go.Scatter(
                                 x=norm_mm.index,
                                 y=norm_mm,
                                 mode='lines',
