@@ -102,37 +102,28 @@ if reload_needed and tickers:
 data = st.session_state['cached_data'].get(watchlist_key, None)
 info_dict = st.session_state['cached_info'].get(watchlist_key, {})
 company_names = {k: v['company_name'] for k, v in info_dict.items()}
-# --- Custom slider with visible tick marks using select_slider ---
-tick_dates = [
-    (five_years_ago.date(), '5y'),
-    ((today - timedelta(days=4*365)).date(), '4y'),
-    ((today - timedelta(days=3*365)).date(), '3y'),
-    ((today - timedelta(days=2*365)).date(), '2y'),
-    ((today - timedelta(days=1*365)).date(), '1y'),
-    (one_week_ago.date(), '1w'),
-    (today.date(), 'Today')
-]
-tick_options = [f"{d} ({label})" for d, label in tick_dates]
-tick_map = {f"{d} ({label})": d for d, label in tick_dates}
-default_tick = f"{(today - timedelta(days=180)).date()} (custom)"
-custom_date = (today - timedelta(days=180)).date()
-tick_options.insert(-1, f"{custom_date} (custom)")
-tick_map[f"{custom_date} (custom)"] = custom_date
-start_tick = default_tick if default_tick in tick_options else tick_options[0]
-selected_tick = st.select_slider(
-    label='',
-    options=tick_options,
-    value=start_tick,
+
+# --- Continuous date slider ---
+import datetime as dt
+min_date = five_years_ago.date()
+max_date = today.date()
+default_date = (today - timedelta(days=180)).date()
+start_date = st.slider(
+    label='Select start date for the chart',
+    min_value=min_date,
+    max_value=max_date,
+    value=default_date,
+    format="YYYY-MM-DD",
     key='compact_slider',
-    help='Select a start date for the chart. Tick marks are labeled.'
+    help='Select a start date for the chart.'
 )
-start_date = tick_map[selected_tick]
 
 
 if tickers:
     tickers_list = tickers
     if tickers_list:
-        data = yf.download(tickers_list, start=start_date, end=today, group_by='ticker', auto_adjust=True)
+        # Only use the full cached data for table calculations; do not overwrite the full cache with the chart's range
+        chart_data = yf.download(tickers_list, start=start_date, end=today, group_by='ticker', auto_adjust=True)
         # --- Chart 1: Performance (start=100%) ---
         fig = go.Figure()
         performance = {}
@@ -141,9 +132,9 @@ if tickers:
         for ticker in tickers_list:
             try:
                 if len(tickers_list) == 1:
-                    prices = data['Close']
+                    prices = chart_data['Close']
                 else:
-                    prices = data[ticker]['Close']
+                    prices = chart_data[ticker]['Close']
                 # Normalize performance: start at 100
                 if not prices.empty:
                     norm = prices / prices.iloc[0] * 100
@@ -218,7 +209,7 @@ if tickers:
                     tkey = tkey.zfill(7)
                 abbr = company_names.get(tkey, ticker)
                 if len(tickers_list) == 1:
-                    prices = data['Close']
+                    prices = chart_data['Close']
                     if not prices.empty:
                         fig2.add_trace(go.Scatter(
                             x=prices.index,
@@ -228,7 +219,7 @@ if tickers:
                             hovertemplate=f'%{{y:.2f}}<br>Date: %{{x|%Y-%m-%d}}<br>Company: {abbr}<extra>' + ticker + '</extra>'
                         ))
                 else:
-                    prices = data[ticker]['Close']
+                    prices = chart_data[ticker]['Close']
                     if not prices.empty:
                         min_p = prices.min()
                         max_p = prices.max()
@@ -289,30 +280,40 @@ if tickers:
             price_2y = None
             price_5y = None
             try:
-                if ticker in data:
-                    # Multi-ticker DataFrame
-                    prices = data[ticker]['Close']
+                # Always use the full 5-year cached data for yearly changes
+                full_data = st.session_state['cached_data'][watchlist_key]
+                if ticker in full_data:
+                    full_prices = full_data[ticker]['Close']
                 else:
-                    # Single ticker DataFrame
-                    prices = data['Close']
-                if not prices.empty:
-                    last_close = prices.iloc[-2] if len(prices) > 1 else prices.iloc[-1]
-                    # Calculate price change for 1, 2, 5 years
-                    today_idx = prices.index[-1]
+                    full_prices = full_data['Close']
+                if not full_prices.empty:
+                    if not isinstance(full_prices.index, pd.DatetimeIndex):
+                        full_prices.index = pd.to_datetime(full_prices.index)
+                    full_prices = full_prices.sort_index()
                     def get_past_price(prices, years):
                         target_date = today - timedelta(days=365*years)
-                        # Find the closest date in the index
-                        past_idx = prices.index.get_loc(target_date, method='nearest') if hasattr(prices.index, 'get_loc') else None
-                        if past_idx is not None:
-                            return prices.iloc[past_idx]
-                        # fallback: try to find the first date after target_date
-                        after = prices.index[prices.index >= target_date]
-                        if len(after) > 0:
-                            return prices.loc[after[0]]
-                        return None
-                    price_1y = get_past_price(prices, 1)
-                    price_2y = get_past_price(prices, 2)
-                    price_5y = get_past_price(prices, 5)
+                        target_date = pd.Timestamp(target_date.date())
+                        val = prices.asof(target_date)
+                        if pd.isna(val):
+                            return prices.iloc[0] if len(prices) > 0 else None
+                        return val
+                    price_1y = get_past_price(full_prices, 1)
+                    price_2y = get_past_price(full_prices, 2)
+                    price_5y = get_past_price(full_prices, 5)
+                # For last_close, use the current chart data (start_date to today)
+                if ticker in chart_data:
+                    prices = chart_data[ticker]['Close']
+                else:
+                    prices = chart_data['Close']
+                if not prices.empty:
+                    if not isinstance(prices.index, pd.DatetimeIndex):
+                        prices.index = pd.to_datetime(prices.index)
+                    last_close = prices.iloc[-2] if len(prices) > 1 else prices.iloc[-1]
+            except Exception:
+                last_close = None
+                price_1y = None
+                price_2y = None
+                price_5y = None
             except Exception:
                 last_close = None
                 price_1y = None
